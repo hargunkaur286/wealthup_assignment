@@ -1,56 +1,128 @@
 <!-- public/index.html -->
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Code Verification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .container {
+      text-align: center;
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      margin: 10px;
+    }
+
+    input {
+      padding: 8px;
+      margin-right: 10px;
+    }
+
+    button {
+      padding: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #0056b3;
+    }
+
+    #resultMessage {
+      margin-top: 10px;
+      color: #d9534f;
+    }
+  </style>
 </head>
+
 <body>
-  <div>
+  <div class="container">
     <p id="generatedCode"></p>
-    <button onclick="refreshCode()">Refresh Code</button>
+    <button id="refreshCode" onclick="refreshCode()">Refresh Code</button>
   </div>
-  <div>
+
+  <div class="container">
     <input type="text" id="enteredCode" placeholder="Enter Code">
     <button onclick="submitCode()">Submit</button>
     <p id="resultMessage"></p>
   </div>
 
+
   <script>
+
     function refreshCode() {
       fetch('/api/codes')
         .then(response => response.json())
         .then(data => {
-          document.getElementById('generatedCode').innerText = `Code: ${data.code}`;
+          // Check if the response contains a valid code
+          if (data && data.code) {
+            document.getElementById('generatedCode').innerText = `Code: ${data.code}`;
+          } else {
+            console.error('Invalid response from server:', data);
+          }
         })
         .catch(error => console.error('Error fetching code:', error));
     }
 
+
     function submitCode() {
       const enteredCode = document.getElementById('enteredCode').value;
+
+      console.log('Entered Code:', enteredCode); // Add this line for logging
+
+      // Check if enteredCode is not empty before sending the request
+      if (!enteredCode) {
+        document.getElementById('resultMessage').innerText = 'Code is required';
+        return;
+      }
 
       fetch('/api/codes/use', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ code: enteredCode }),
+        body: JSON.stringify({ code: enteredCode }), // Ensure that the property name is 'value'
       })
         .then(response => response.json())
         .then(data => {
-          document.getElementById('resultMessage').innerText = data.message;
-          // Optionally, you can refresh the code after a successful submission
-          refreshCode();
+          console.log('Response:', data); // Add this line for logging
+
+          if (data.error) {
+            document.getElementById('resultMessage').innerText = data.error;
+          } else {
+            document.getElementById('resultMessage').innerText = data.message;
+
+            // Check if a new code is returned and refresh the UI
+            if (data.newCode) {
+              document.getElementById('generatedCode').innerText = `Code: ${data.newCode}`;
+            }
+          }
+
+          document.getElementById('enteredCode').value = '';
         })
         .catch(error => {
-          document.getElementById('resultMessage').innerText = error.error || 'An error occurred';
+          console.error('Error:', error); // Log any errors
+          document.getElementById('resultMessage').innerText = 'An error occurred';
         });
     }
-
-    // Initial code generation on page load
     refreshCode();
   </script>
 </body>
-</html>
 
+</html>

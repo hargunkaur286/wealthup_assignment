@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
 const codeSchema = new mongoose.Schema({
-  value: {
+  code: {
     type: String,
-    required: true,
+    // required: true,
     unique: true,
+    index: true
   },
   used: {
     type: Boolean,
@@ -19,3 +20,4 @@ const codeSchema = new mongoose.Schema({
 const Code = mongoose.model('Code', codeSchema);
 
 module.exports = Code;
+

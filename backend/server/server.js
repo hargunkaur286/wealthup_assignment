@@ -22,35 +22,83 @@ connect();
 
 // Code schema
 const codeSchema = new mongoose.Schema({
-  code: { type: String, unique: true },
+  code: { type: String, unique: true},
   used: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
 });
 
 const Code = mongoose.model('Code', codeSchema);
 
-// Generate a new code
+function generateCode() {
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return code;
+}
+
+
 app.get('/api/codes', async (req, res) => {
   try {
-    const newCode = new Code({ code: generateCode() });
-    await newCode.save();
-    res.json({ code: newCode.code });
+    let newCode;
+    let isCodeUnique = false;
+
+    // Ensure the generated code is unique
+    while (!isCodeUnique) {
+      newCode = generateCode();
+      console.log('Generated Code:', newCode); // Log the generated code
+
+      const existingCode = await Code.findOne({ code: newCode });
+
+      if (!existingCode) {
+        isCodeUnique = true;
+      }
+    }
+
+    // Save the unique code to the database
+    const codeDocument = new Code({ code: newCode });
+    await codeDocument.save();
+    console.log('New Code Saved:', codeDocument);
+
+    // Respond with the unique code
+    res.json({ code: newCode });
   } catch (error) {
-    res.status(500).json({ error: 'Internal Server Error' });
+    if (error.code === 11000) {
+      console.error('Duplicate key error:', error);
+      res.status(500).json({ error: 'Duplicate key error' });
+    } else {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
   }
 });
 
-// Use a code
+
+
+
 app.post('/api/codes/use', bodyParser.json(), async (req, res) => {
   try {
+    console.log('Request Body:', req.body);
     const { code } = req.body;
-    const existingCode = await Code.findOne({ code });
+
+    console.log('Received code:', code);
+
+    if (!code) {
+      return res.status(400).json({ error: 'Code is missing in the request' });
+    }
+
+    const existingCode = await Code.findOne({ code: code });
+
+    console.log('Existing Code:', existingCode); // Add this line for logging
+
 
     if (!existingCode) {
       return res.status(400).json({ error: 'Enter a valid code' });
     }
 
     if (existingCode.used) {
+      console.log('Code has already been used'); // Add this line for logging
       return res.status(400).json({ error: 'This code has already been used' });
     }
 
@@ -64,21 +112,17 @@ app.post('/api/codes/use', bodyParser.json(), async (req, res) => {
     existingCode.used = true;
     await existingCode.save();
 
-    res.json({ message: 'Code is correct' });
+    // Generate a new code without saving it immediately
+    const newCode = generateCode();
+
+    res.json({ message: 'Code is correct', newCode });
   } catch (error) {
+    console.error('Error:', error);
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
 
-// Generate a random code
-function generateCode() {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return code;
-}
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
